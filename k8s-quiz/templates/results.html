@@ -51,6 +51,43 @@
         a:hover {
             background-color: #0056b3;
         }
+        /* --- added styles for certificate download section --- */
+        .certificate-section {
+            margin-top: 24px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #f9fbff;
+        }
+        .certificate-section h2 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .certificate-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .certificate-controls label {
+            font-weight: 600;
+            color: #444;
+        }
+        #cert-name {
+            flex: 1 1 240px;
+            max-width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        #download-cert-button {
+            background-color: #28a745;
+        }
+        #download-cert-button:hover {
+            background-color: #218838;
+        }
     </style>
 </head>
 <body>
@@ -76,7 +113,102 @@
         <div class="congrats">🎉 Perfect Score! Well done! 🎉</div>
     {% endif %}
 
+    <!-- Certificate download section -->
+    <div class="certificate-section">
+        <h2>Download Certificate</h2>
+        <div class="certificate-controls">
+            <label for="cert-name">Your Name</label>
+            <input type="text" id="cert-name" placeholder="Enter your name">
+            <button type="button" id="download-cert-button">Download Certificate</button>
+        </div>
+        <canvas id="cert-canvas" width="1400" height="1000" class="hidden"></canvas>
+    </div>
+
     <a href="/">Try Again</a>
 </div>
+
+<script>
+(function() {
+    const button = document.getElementById('download-cert-button');
+    const nameInput = document.getElementById('cert-name');
+    const canvas = document.getElementById('cert-canvas');
+    if (!button || !canvas) return;
+
+    const score = {{ score }};
+    const total = {{ total }};
+
+    function drawCertificate(nameValue) {
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+
+        // Decorative border
+        ctx.strokeStyle = '#0e6dfd';
+        ctx.lineWidth = 12;
+        ctx.strokeRect(30, 30, width - 60, height - 60);
+
+        ctx.strokeStyle = '#82b1ff';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(50, 50, width - 100, height - 100);
+
+        // Header
+        ctx.fillStyle = '#0e6dfd';
+        ctx.font = 'bold 64px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Certificate of Achievement', width / 2, 200);
+
+        ctx.fillStyle = '#333333';
+        ctx.font = '28px sans-serif';
+        ctx.fillText('This certificate is proudly presented to', width / 2, 280);
+
+        // Recipient name
+        ctx.fillStyle = '#111111';
+        ctx.font = 'bold 72px sans-serif';
+        ctx.fillText(nameValue, width / 2, 370);
+
+        // Body text
+        ctx.fillStyle = '#444444';
+        ctx.font = '28px sans-serif';
+        ctx.fillText('for successfully completing the', width / 2, 440);
+
+        ctx.fillStyle = '#0e6dfd';
+        ctx.font = 'bold 40px sans-serif';
+        ctx.fillText('Docker & Kubernetes Quiz', width / 2, 490);
+
+        // Score
+        ctx.fillStyle = '#222222';
+        ctx.font = '32px sans-serif';
+        ctx.fillText(`Score: ${score} / ${total}`, width / 2, 560);
+
+        // Date and issuer
+        const date = new Date().toLocaleDateString();
+        ctx.font = '24px sans-serif';
+        ctx.fillStyle = '#666666';
+        ctx.fillText(`Date: ${date}`, width / 2, 620);
+        ctx.fillText('Issuer: Kubernetes Quiz App', width / 2, 660);
+    }
+
+    function downloadCanvasAsPng(filename) {
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = canvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    button.addEventListener('click', function() {
+        const rawName = (nameInput.value || 'Participant').trim();
+        const safeName = rawName.replace(/\s+/g, ' ').substring(0, 60);
+        drawCertificate(safeName || 'Participant');
+        const filename = `certificate-${(safeName || 'participant').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
+        downloadCanvasAsPng(filename);
+    });
+})();
+</script>
 </body>
 </html>
