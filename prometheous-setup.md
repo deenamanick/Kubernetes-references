@@ -207,4 +207,200 @@ Now Prometheus automatically scrapes NGINX pod metrics!
 | **Annotation**    | Labels that tell Prometheus which pods to collect metrics from |
 
 ---
+Here’s a clean, step-by-step guide to **run Grafana as a container inside Kubernetes** (no Helm) — so students can understand how Grafana actually runs and connects to Prometheus.
+
+---
+
+## 🧩 **Goal**
+
+Run Grafana on Kubernetes, connect it to Prometheus, and open the dashboard.
+
+---
+
+## ⚙️ Step 1 — Namespace (if not created)
+
+```bash
+kubectl create namespace monitoring
+```
+
+---
+
+## 📄 Step 2 — Create a ConfigMap for Grafana Datasource
+
+Create a file named **`grafana-datasource.yaml`**:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource
+  namespace: monitoring
+data:
+  datasource.yml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-service.monitoring.svc.cluster.local:9090
+        isDefault: true
+```
+
+Apply it:
+
+```bash
+kubectl apply -f grafana-datasource.yaml
+```
+
+---
+
+## 📦 Step 3 — Create Grafana Deployment
+
+Create **`grafana-deployment.yaml`**:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.2.0
+        ports:
+          - containerPort: 3000
+        env:
+          - name: GF_SECURITY_ADMIN_USER
+            value: admin
+          - name: GF_SECURITY_ADMIN_PASSWORD
+            value: admin123
+        volumeMounts:
+          - name: grafana-storage
+            mountPath: /var/lib/grafana
+          - name: grafana-datasource
+            mountPath: /etc/grafana/provisioning/datasources/
+      volumes:
+        - name: grafana-storage
+          emptyDir: {}
+        - name: grafana-datasource
+          configMap:
+            name: grafana-datasource
+```
+
+Apply it:
+
+```bash
+kubectl apply -f grafana-deployment.yaml
+```
+
+---
+
+## 🌐 Step 4 — Expose Grafana Service
+
+Create **`grafana-service.yaml`**:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+spec:
+  type: NodePort
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30300
+  selector:
+    app: grafana
+```
+
+Apply it:
+
+```bash
+kubectl apply -f grafana-service.yaml
+```
+
+---
+
+## 🧪 Step 5 — Verify Deployment
+
+```bash
+kubectl get all -n monitoring
+```
+
+Expected:
+
+```
+pod/grafana-xxxxxx       Running
+service/grafana          NodePort   3000:30300/TCP
+```
+
+---
+
+## 🌍 Step 6 — Access Grafana
+
+If you’re using a local cluster (Vagrant/Minikube):
+
+```bash
+kubectl port-forward svc/grafana -n monitoring 3000:3000
+```
+
+Then open your browser →
+👉 **[http://localhost:3000](http://localhost:3000)**
+
+Login:
+
+* Username: `admin`
+* Password: `admin123`
+
+---
+
+## 🧠 Step 7 — Confirm Prometheus Connection
+
+In Grafana →
+**Connections → Data sources → Prometheus → Test connection**
+
+It should show ✅ *Data source is working!*
+
+
+http://prometheus-service.monitoring.svc.cluster.local:9090
+---
+
+## 🧩 Step 8 — Import Dashboards
+
+* Go to **Dashboards → Import**
+* Use any of these IDs from Grafana Labs:
+
+  * **1860** → Node Exporter / Cluster overview
+  * **3662** → K8s pods metrics
+  * **12019** → Loki logs (if Loki installed)
+
+---
+
+## 🧠 For Students: How It Fits Together
+
+| Component              | Role                                                              |
+| ---------------------- | ----------------------------------------------------------------- |
+| **Prometheus**         | Collects metrics (CPU, memory, pod usage)                         |
+| **Grafana**            | Visualizes metrics via dashboards                                 |
+| **ConfigMap**          | Preconfigures Prometheus as a data source                         |
+| **Service (NodePort)** | Exposes Grafana web UI                                            |
+| **Kubernetes Objects** | Students learn how Deployments, ConfigMaps, and Services interact |
+
+---
 
