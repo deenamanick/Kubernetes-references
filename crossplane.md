@@ -1,19 +1,21 @@
 
 # Crossplane on Kubernetes – Setup Guide
 
-*(Including Helm Installation, Until Provider Enabled)*
+*(Including Helm, Azure Provider & AWS Provider – Until Authentication)*
 
-This guide explains how to install **Crossplane** on a Kubernetes cluster (kubeadm-based) using **Helm**, and how to enable an **Azure provider**, without creating any cloud resources.
+This guide explains how to install **Crossplane** on a Kubernetes cluster (kubeadm-based) using **Helm**, and how to enable **both Azure and AWS providers**, without creating any cloud resources.
 
 > **Scope of this README**
 >
-> * Install Helm
-> * Install Crossplane using Helm
-> * Verify Crossplane core components
-> * Install Azure provider package
-> * Verify provider is installed and healthy
->   ❌ No Azure authentication
->   ❌ No Azure resources created
+> ✅ Install Helm
+> ✅ Install Crossplane using Helm
+> ✅ Verify Crossplane core components
+> ✅ Install Azure provider
+> ✅ Install AWS provider
+> ✅ Verify providers are installed and healthy
+>
+> ❌ No cloud authentication
+> ❌ No cloud resources created
 
 ---
 
@@ -146,19 +148,17 @@ xpkg.crossplane.io/crossplane/crossplane:v2.x.x
 kubectl get crds | grep crossplane
 ```
 
-This confirms Crossplane APIs are installed.
-
 ---
 
 ## 5. Understanding Providers in Crossplane
 
 * Crossplane core **does nothing by itself**
-* All integrations are done via **Providers**
+* Every cloud integration requires a **Provider**
 * Providers:
 
-  * Install CRDs
+  * Install cloud-specific CRDs
   * Run controller pods
-  * Connect Kubernetes to external systems (Azure, AWS, etc.)
+  * Talk to cloud APIs (Azure, AWS, etc.)
 
 Before installing any provider:
 
@@ -178,10 +178,10 @@ No resources found
 
 ## 6. Install Azure Provider (Provider Family)
 
-> This step **only installs the provider runtime**.
-> No Azure credentials or resources are created.
+> This step installs the Azure provider runtime only.
+> **No Azure credentials or resources are created.**
 
-### 6.1 Create Provider manifest
+### 6.1 Create Azure Provider manifest
 
 Create file: `provider-family-azure.yaml`
 
@@ -194,9 +194,7 @@ spec:
   package: xpkg.upbound.io/upbound/provider-family-azure:v2.3.0
 ```
 
----
-
-### 6.2 Apply the Provider
+Apply:
 
 ```bash
 kubectl apply -f provider-family-azure.yaml
@@ -204,40 +202,68 @@ kubectl apply -f provider-family-azure.yaml
 
 ---
 
-## 7. Verify Provider Installation
+## 7. Install AWS Provider (Provider Family)
 
-### 7.1 Check provider status
+> This step installs the AWS provider runtime only.
+> **No AWS credentials or resources are created.**
+
+### 7.1 Create AWS Provider manifest
+
+Create file: `provider-family-aws.yaml`
+
+```yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-family-aws
+spec:
+  package: xpkg.upbound.io/upbound/provider-family-aws:v1.16.0
+```
+
+Apply:
+
+```bash
+kubectl apply -f provider-family-aws.yaml
+```
+
+---
+
+## 8. Verify Provider Installation (Azure + AWS)
+
+### 8.1 Check providers
 
 ```bash
 kubectl get providers
 ```
 
-Expected (initially):
+Expected output (initially):
 
 ```text
 NAME                    INSTALLED   HEALTHY   PACKAGE
 provider-family-azure   True        False     xpkg.upbound.io/upbound/provider-family-azure:v2.3.0
+provider-family-aws     True        False     xpkg.upbound.io/upbound/provider-family-aws:v1.16.0
 ```
 
 > `HEALTHY=False` is normal immediately after installation.
 
 ---
 
-### 7.2 Check provider pods
+### 8.2 Check provider pods
 
 ```bash
 kubectl get pods -n crossplane-system
 ```
 
-Expected:
+Expected pods:
 
 ```text
-provider-family-azure-xxxxxx   1/1   Running
+provider-family-azure-xxxxx   1/1   Running
+provider-family-aws-xxxxx     1/1   Running
 ```
 
 ---
 
-### 7.3 Check ProviderRevision (important)
+### 8.3 Check ProviderRevisions (important)
 
 ```bash
 kubectl get providerrevisions
@@ -246,19 +272,20 @@ kubectl get providerrevisions
 Example output:
 
 ```text
-NAME                                 HEALTHY   RUNTIME   STATE
-provider-family-azure-xxxxxxxxx      True      True      Active
+NAME                                  HEALTHY   RUNTIME   STATE
+provider-family-azure-xxxxxxx         True      True      Active
+provider-family-aws-xxxxxxx           True      True      Active
 ```
 
 This confirms:
 
-* Provider package unpacked successfully
+* Provider packages unpacked successfully
 * Runtime controllers are healthy
-* Provider is ready for authentication
+* Providers are ready for authentication
 
 ---
 
-## 8. Current State Summary (End of This README)
+## 9. Current State Summary (End of This README)
 
 At this point:
 
@@ -266,56 +293,59 @@ At this point:
 ✅ Crossplane installed using Helm
 ✅ Crossplane core running
 ✅ Azure provider installed
-✅ ProviderRevision healthy
-❌ No Azure authentication configured
-❌ No Azure resources created
+✅ AWS provider installed
+✅ ProviderRevisions healthy
+❌ No Azure authentication
+❌ No AWS authentication
+❌ No cloud resources created
 
 This is the **correct stopping point** before enabling:
 
-* Service Principal authentication **or**
-* Managed Identity authentication
+* Azure authentication (Managed Identity or Service Principal)
+* AWS authentication (IAM User / IAM Role / IRSA)
 
 ---
 
-## 9. What Comes Next (Out of Scope)
+## 10. What Comes Next (Out of Scope)
 
-The next steps should be in a **separate README**:
+Create **separate READMEs** for authentication and resource creation:
 
-1. Configure Azure authentication
+1. Azure authentication
 
-   * Managed Identity **or**
+   * Managed Identity
    * Service Principal
-2. Create `ProviderConfig`
-3. Use existing Azure Resource Group
-4. Create a small test resource (Storage Account)
+2. AWS authentication
+
+   * IAM User (Access Key)
+   * IAM Role / IRSA
+3. Create `ProviderConfig`
+4. Use existing Resource Groups / VPCs
+5. Create small test resources
+
+   * Azure Storage Account
+   * AWS S3 Bucket
 
 ---
 
-## 10. Useful Debug Commands
+## 11. Useful Debug Commands
 
 ```bash
 kubectl get pods -n crossplane-system
 kubectl get providers
 kubectl get providerrevisions
 kubectl describe provider provider-family-azure
+kubectl describe provider provider-family-aws
 kubectl get events -n crossplane-system --sort-by=.lastTimestamp | tail -n 20
 ```
 
 ---
 
-## 11. Key Concept (For Learners)
+## 12. Key Concept (For Learners)
 
-> **Helm installs Crossplane
-> Crossplane installs Providers
-> Providers enable infrastructure control**
+> **Helm installs Crossplane**
+> **Crossplane installs Providers**
+> **Providers enable multi-cloud infrastructure control**
 
 ---
 
-If you want next, I can generate:
-
-* `README-auth-managed-identity.md`
-* `README-auth-service-principal.md`
-* `README-crossplane-first-resource.md`
-* A **single combined lab manual (PDF / DOCX)**
-
-Just tell me 👍
+Just tell me what you want next 👍
