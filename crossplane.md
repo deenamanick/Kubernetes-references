@@ -260,6 +260,26 @@ Expected pods:
 provider-family-azure-xxxxx   1/1   Running
 provider-family-aws-xxxxx     1/1   Running
 ```
+## result should be like this
+
+```
+
+[vagrant@kubemaster ~]$ kubectl get pods -n crossplane-system -o wide
+NAME                                                READY   STATUS    RESTARTS   AGE   IP            NODE              NOMINATED NODE   READINESS GATES
+crossplane-7f9956d85f-j8vjh                         1/1     Running   0          95s   10.244.1.50   worker1.uat.com   <none>           <none>
+crossplane-rbac-manager-6d7d5844bd-b2gxc            1/1     Running   0          20m   10.244.1.47   worker1.uat.com   <none>           <none>
+provider-family-aws-4c8d237e76d4-847f455fd9-p95dq   1/1     Running   0          89s   10.244.2.73   worker2.uat.com   <none>           <none>
+
+[vagrant@kubemaster ~]$ kubectl get provider
+NAME                  INSTALLED   HEALTHY   PACKAGE                                               AGE
+provider-family-aws   True        True      xpkg.upbound.io/upbound/provider-family-aws:v1.16.0   3m50s
+[vagrant@kubemaster ~]$ kubectl get providerrevisions
+NAME                               HEALTHY   RUNTIME   IMAGE                                                 STATE    AGE
+provider-family-aws-4c8d237e76d4   True      True      xpkg.upbound.io/upbound/provider-family-aws:v1.16.0   Active   3m13s
+[vagrant@kubemaster ~]$ 
+
+```
+
 
 ---
 
