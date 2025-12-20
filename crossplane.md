@@ -360,12 +360,3 @@ kubectl get events -n crossplane-system --sort-by=.lastTimestamp | tail -n 20
 
 ---
 
-## 12. Key Concept (For Learners)
-
-> **Helm installs Crossplane**
-> **Crossplane installs Providers**
-> **Providers enable multi-cloud infrastructure control**
-
----
-
-Just tell me what you want next 👍
